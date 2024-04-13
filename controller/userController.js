@@ -2,7 +2,8 @@ const User = require("../models/userModel");
 
 exports.getUsers = async (req, res) => {
   try {
-    const users = await User.find();
+    console.log(req.query);
+    const users = await User.find(req.query);
 
     if (!users || users.length === 0) {
       throw new Error("No users Found");
@@ -12,6 +13,26 @@ exports.getUsers = async (req, res) => {
       results: users.length,
       data: users,
     });
+  } catch (err) {
+    res.status(500).json({
+      status: "failed",
+      message: err.message,
+    });
+  }
+};
+
+exports.checkBody = (req, res, next) => {
+  try {
+    const { password, confirmPassword } = req.body;
+
+    if (password !== confirmPassword) {
+      return res.status(401).json({
+        status: "Error",
+        message: "Password does not Match",
+      });
+    }
+
+    next();
   } catch (err) {
     res.status(500).json({
       status: "failed",
