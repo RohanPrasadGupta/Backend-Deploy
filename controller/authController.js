@@ -1,5 +1,6 @@
 const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
+const { promisify } = require("util");
 
 const signedToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_TOKEN, {
@@ -46,6 +47,45 @@ exports.login = async (req, res) => {
       status: "success",
       token,
     });
+  } catch (err) {
+    res.status(500).json({
+      status: "failed",
+      message: err.message,
+    });
+  }
+};
+
+exports.protect = async (req, res, next) => {
+  try {
+    let token;
+
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Logger")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+    if (!token) {
+      throw new Error("You are not Login Please login..");
+    }
+    console.log(token);
+
+    const decoded = await promisify(jwt.verify)(token, process.env.JWT_TOKEN);
+
+    // console.log(decoded);
+
+    const freshUser = await User.findById(decoded.id);
+
+    if (!freshUser) {
+      throw new Error("User Session Expired login again");
+    }
+
+    if (freshUser.changedPasswordAfter(decoded.iat)) {
+      throw new Error("User Changed password, Login Again");
+    }
+
+    req.user = freshUser;
+    next();
   } catch (err) {
     res.status(500).json({
       status: "failed",
